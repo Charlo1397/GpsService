@@ -97,6 +97,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             )
         }
     }
+    /**
+     * Fuera del punto Mexico
+     */
 
     fun definePoligono(googleMap: GoogleMap){
         val geoJsonData= JSONObject("{\n" +
@@ -110,28 +113,24 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 "        \"coordinates\": [\n" +
                 "          [\n" +
                 "            [\n" +
-                "              1.0546875,\n" +
-                "              34.30714385628804\n" +
+                "              -95.625,\n" +
+                "              15.580710739162123\n" +
                 "            ],\n" +
                 "            [\n" +
-                "              -9.140625,\n" +
-                "              27.68352808378776\n" +
+                "              -94.7900390625,\n" +
+                "              19.72534224805787\n" +
                 "            ],\n" +
                 "            [\n" +
-                "              3.8671874999999996,\n" +
-                "              19.80805412808859\n" +
+                "              -102.1728515625,\n" +
+                "              21.779905342529645\n" +
                 "            ],\n" +
                 "            [\n" +
-                "              11.42578125,\n" +
-                "              23.241346102386135\n" +
+                "              -102.919921875,\n" +
+                "              18.104087015773956\n" +
                 "            ],\n" +
                 "            [\n" +
-                "              9.84375,\n" +
-                "              32.69486597787505\n" +
-                "            ],\n" +
-                "            [\n" +
-                "              1.0546875,\n" +
-                "              34.30714385628804\n" +
+                "              -95.625,\n" +
+                "              15.580710739162123\n" +
                 "            ]\n" +
                 "          ]\n" +
                 "        ]\n" +
@@ -142,6 +141,64 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         layer = GeoJsonLayer(googleMap, geoJsonData)
         layer.addLayerToMap()
     }
+
+    /**
+     * dentro del punto Costa Rica
+     */
+    /*
+    fun definePoligono(googleMap: GoogleMap){
+        val geoJsonData= JSONObject("{\n" +
+                "  \"type\": \"FeatureCollection\",\n" +
+                "  \"features\": [\n" +
+                "    {\n" +
+                "      \"type\": \"Feature\",\n" +
+                "      \"properties\": {},\n" +
+                "      \"geometry\": {\n" +
+                "        \"type\": \"Polygon\",\n" +
+                "        \"coordinates\": [\n" +
+                "          [\n" +
+                "            [\n" +
+                "              -85.69335937499999,\n" +
+                "              11.30770770776545\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -86.0009765625,\n" +
+                "              10.120301632173907\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -85.14404296875,\n" +
+                "              9.514079262770904\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -84.83642578125,\n" +
+                "              9.774024565864734\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -82.8369140625,\n" +
+                "              7.776308503776205\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -82.55126953124999,\n" +
+                "              9.687398430760624\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -83.7158203125,\n" +
+                "              11.005904459659451\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -85.69335937499999,\n" +
+                "              11.30770770776545\n" +
+                "            ]\n" +
+                "          ]\n" +
+                "        ]\n" +
+                "      }\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}")
+        layer = GeoJsonLayer(googleMap, geoJsonData)
+        layer.addLayerToMap()
+    }*/
+
 
     @SuppressLint("MissingSuperCall")
     override fun onRequestPermissionsResult(
