@@ -1,190 +1,189 @@
 package cr.ac.gpsservice
-
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.*
+import com.google.maps.android.data.geojson.GeoJsonLayer
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.maps.android.PolyUtil
+import com.google.maps.android.data.geojson.GeoJsonPolygon
 import cr.ac.gpsservice.databinding.ActivityMapsBinding
 import cr.ac.gpsservice.db.LocationDatabase
 import cr.ac.gpsservice.entity.Location
+import cr.ac.gpsservice.service.GpsService
+import org.json.JSONObject
+import java.util.jar.Manifest
 
+
+
+private lateinit var mMap: GoogleMap
+private lateinit var locationDatabase: LocationDatabase
+private lateinit var layer : GeoJsonLayer
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
-    private lateinit var mMap: GoogleMap
-    private lateinit var binding: ActivityMapsBinding
-    private val SOLICITA_GPS = 1
-    private lateinit var mLocationClient : FusedLocationProviderClient // Proveedor de Localización Google
-    private lateinit var mLocationRequest : LocationRequest
-    private lateinit var mLocationCallback: LocationCallback
 
-    private lateinit var locationDatabase: LocationDatabase
+    private lateinit var binding: ActivityMapsBinding
+    private val SOLICITAR_GPS = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        locationDatabase = LocationDatabase.getInstance(this)
-
-        mLocationCallback = object : LocationCallback(){
-            override fun onLocationResult(locationResult: LocationResult) {
-
-                if(mMap  != null){
-                    if(locationResult.equals(null))
-                        return
-
-                }// Dibujar en el Mapa los Puntos
-                for(location in locationResult.locations){
-
-                    val sydney = LatLng(location.latitude, location.longitude)
-                    mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
-
-                    locationDatabase.locationDao.insert(Location(null,location.latitude,location.longitude))
-
-                }
-            }
-        }
-
-        mLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        mLocationRequest = LocationRequest()
-        mLocationRequest.interval = 10000
-        mLocationRequest.fastestInterval = 5000
-        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-
-        LocationSettingsRequest.Builder().addLocationRequest(mLocationRequest)
-
-
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
+        locationDatabase=LocationDatabase.getInstance(this)
         validaPermisos()
     }
-
-
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        iniciarServicio()
-        recuperarPuntos()
+        definePoligono(googleMap)
+        recuperarPuntos(mMap)
+        iniciaServicio()
 
     }
 
-    /**
-     * Obtener los puntos almacenados en la bd y mostrarlos en el mapa
-     */
+    fun recuperarPuntos(googleMap:GoogleMap){
+        mMap = googleMap
 
-    fun recuperarPuntos(){
-        var lista : List<Location>  = locationDatabase.locationDao.query()
-
-        for(loc in lista) {
-            // Add a marker in Sydney and move the camera
-            val sydney = LatLng(loc.latitude, loc.longitude)
-            mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
-
+        for(location in locationDatabase.locationDao.query()){
+            val costaRica = LatLng(location.latitude, location.longitude)
+            mMap.addMarker(MarkerOptions().position(costaRica).title("Marker"))
         }
-    }
-
-    /**
-     *Hace un filtro del broadcast GPS (cr.ac.gpsservice.GPS_EVENT)
-     * E inicia el servicio (startService) GpsService
-     */
-
-    fun iniciarServicio(){
 
     }
 
-    /**
-     * Valida si la app tiene permisos de ACCESS_FINE_LOCATION
-     * si no tiene permisos solicita al usuario oermisos (requestPermissions)
-     */
+
+    fun iniciaServicio(){
+        val filter= IntentFilter()
+        filter.addAction(GpsService.GPS)
+        val rcv = ProgressReceiver()
+        registerReceiver(rcv,filter)
+        startService(Intent(this,GpsService::class.java))
+    }
 
     fun validaPermisos(){
         if (ActivityCompat.checkSelfPermission(
                 this,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                android.Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(
+            (ActivityCompat.checkSelfPermission(
                 this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED)
         ) {
-            //No Tengo Permisos
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
                 ),
-                SOLICITA_GPS
-            )
-        }else{
-            mLocationClient.requestLocationUpdates(
-                mLocationRequest,
-                mLocationCallback, null
+                SOLICITAR_GPS
             )
         }
     }
 
-    /**
-     *
-     */
+    fun definePoligono(googleMap: GoogleMap){
+        val geoJsonData= JSONObject("{\n" +
+                "  \"type\": \"FeatureCollection\",\n" +
+                "  \"features\": [\n" +
+                "    {\n" +
+                "      \"type\": \"Feature\",\n" +
+                "      \"properties\": {},\n" +
+                "      \"geometry\": {\n" +
+                "        \"type\": \"Polygon\",\n" +
+                "        \"coordinates\": [\n" +
+                "          [\n" +
+                "            [\n" +
+                "              1.0546875,\n" +
+                "              34.30714385628804\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              -9.140625,\n" +
+                "              27.68352808378776\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              3.8671874999999996,\n" +
+                "              19.80805412808859\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              11.42578125,\n" +
+                "              23.241346102386135\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              9.84375,\n" +
+                "              32.69486597787505\n" +
+                "            ],\n" +
+                "            [\n" +
+                "              1.0546875,\n" +
+                "              34.30714385628804\n" +
+                "            ]\n" +
+                "          ]\n" +
+                "        ]\n" +
+                "      }\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}")
+        layer = GeoJsonLayer(googleMap, geoJsonData)
+        layer.addLayerToMap()
+    }
 
-    @SuppressLint("MissingPermission")
+    @SuppressLint("MissingSuperCall")
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
-        grantResults: IntArray,
-    ){
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        grantResults: IntArray
+    ) {
+        when (requestCode) {
+            SOLICITAR_GPS -> {
+                if ( grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-        when(requestCode){
-            SOLICITA_GPS -> {
-                if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-                    // El Usuario dio permisos
-                    mLocationClient.requestLocationUpdates(
-                        mLocationRequest,
-                        mLocationCallback, null
-                    )
-                }
-                else{//El Usuario no dio permisos de GPS
                     System.exit(1)
                 }
+
             }
         }
     }
 
-    /**
-     * Es la clase para recibir los mensajes de broadcast
-     */
+    class ProgressReceiver:BroadcastReceiver() {
+        fun getPolygon(layer: GeoJsonLayer): GeoJsonPolygon? {
+            for (feature in layer.features) {
+                return feature.geometry as GeoJsonPolygon
+            }
+            return null
+        }
 
-    class ProgressReceiver : BroadcastReceiver(){
+        override fun onReceive(p0: Context, p1: Intent) {
+            if (p1.action == GpsService.GPS) {
+                val localizacion: Location = p1.getSerializableExtra("localizacion") as Location
+                val punto = LatLng(localizacion.latitude, localizacion.longitude)
+                mMap.addMarker(MarkerOptions().position(punto).title("Marker"))
 
-        /**
-         * Se obtiene el parametro enviado por el servicio (Loccation)
-         * Coloca en el mapa la localización
-         * Mueve la cámara a esa localización
-         */
 
-        override fun onReceive(p0: Context?, p1: Intent?) {
-
+                if (PolyUtil.containsLocation(
+                        localizacion.latitude,
+                        localizacion.longitude,
+                        getPolygon(layer)!!.outerBoundaryCoordinates, false)) {
+                    Toast.makeText(p0,"En el punto",Toast.LENGTH_SHORT).show()
+                }else{
+                    Toast.makeText(p0,"No esta en el punto",Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 }
